@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เข้าสู่ระบบ | HealthWatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="brand">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true"><path d="M2 14h5l2.5-6 4 11 2.5-5H24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand-text">HealthWatch<small>เฝ้าระวังสุขภาพจากการทำงาน</small></span>
+    </span>
+  </div>
+</header>
+<main>
+  <div id="banner" class="banner" hidden></div>
+  <div class="login-shell">
+  <aside class="login-side">
+    <span class="eyebrow">ระบบเฝ้าระวังสุขภาพพนักงาน</span>
+    <h2>เทียบผลตรวจทุกปีกับปีแรก เห็นคนที่เริ่มแย่ลงก่อนป่วยจริง</h2>
+    <ul class="login-feats">
+      <li><span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>การได้ยิน 7 ความถี่ และสมรรถภาพปอด</li>
+      <li><span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>บอกสิ่งที่ต้องทำตามประกาศกรมสวัสดิการฯ</li>
+      <li><span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>ชี้แผนกที่ควรปรับสภาพแวดล้อมการทำงาน</li>
+    </ul>
+    <div class="login-stat" aria-hidden="true">
+      <svg viewBox="0 0 92 34"><polyline points="2,26 14,24 26,25 38,14 50,20 62,8 74,12 90,4"/></svg>
+      <span><b>แบ่งสิทธิ์ตามบทบาท</b><span>ข้อมูลรายคนเห็นเฉพาะ จป. และแพทย์</span></span>
+    </div>
+  </aside>
+  <form class="panel login-card" id="form" novalidate>
+    <h1>เข้าสู่ระบบ</h1>
+    <p class="lead">ข้อมูลสุขภาพรายบุคคลเป็นข้อมูลอ่อนไหว ระบบจึงแบ่งสิทธิ์ตามบทบาท</p>
+
+    <fieldset class="role-pick">
+      <legend>เลือกบทบาทของคุณ</legend>
+      <label class="role-opt"><input type="radio" name="role" value="officer" checked>
+        <span class="role-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a6 6 0 0 0 12 0V3"/><path d="M12 15v2a4 4 0 0 0 8 0v-3"/><circle cx="20" cy="12" r="2"/></svg></span>
+        <span><strong>จป. / แพทย์</strong><small>เห็นข้อมูลทั้งหมด รวมถึงรหัสพนักงานรายคน บันทึกผลตรวจได้</small></span>
+        <span class="role-check" aria-hidden="true"></span></label>
+      <label class="role-opt"><input type="radio" name="role" value="head">
+        <span class="role-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
+        <span><strong>หัวหน้าแผนก</strong><small>เห็นเฉพาะตัวเลขสรุปและกราฟของแผนกตัวเอง ไม่เห็นรหัสพนักงาน</small></span>
+        <span class="role-check" aria-hidden="true"></span></label>
+    </fieldset>
+
+    <div id="deptWrap" hidden>
+      <label for="dept">แผนกของคุณ</label>
+      <select id="dept" style="width:100%"></select>
+    </div>
+
+    <div>
+      <label for="pin">PIN</label>
+      <div class="pin-wrap">
+        <input type="password" id="pin" inputmode="numeric" autocomplete="current-password" maxlength="12">
+        <button type="button" class="pin-toggle" id="pinToggle" aria-label="แสดง PIN" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <p class="hint" id="demoPins" hidden></p>
+
+    <p class="error" id="err" role="alert"></p>
+    <button class="btn" type="submit" id="loginBtn">เข้าสู่ระบบ</button>
+  </form>
+  </div>
+</main>
+<script src="config.js"></script>
+<script src="config.local.js"></script>
+<script src="data/mock-data.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  const next = HW.safeNext(new URLSearchParams(location.search).get("next"));
+  if (HW.getSession()) { location.replace(next); return; }
+  HW.renderDemoBanner(document.getElementById("banner"));
+
+  if (HW.isDemo()) {
+    const p = HW.pins();
+    const hint = document.getElementById("demoPins");
+    hint.textContent = `โหมดสาธิต: PIN ของ จป. / แพทย์ คือ ${p.officer} และหัวหน้าแผนกคือ ${p.head} (ตั้งค่าได้ใน config.js)`;
+    hint.hidden = false;
+  }
+
+  const deptSel = document.getElementById("dept");
+  let depts = [];
+  try { depts = [...new Set((await HW.loadRecords()).map((r) => r.dept))]; } catch (e) { /* ใช้รายชื่อตั้งต้น */ }
+  if (!depts.length) depts = ["ปั๊มโลหะ", "พ่นสี", "ประกอบชิ้นส่วน", "คลังสินค้า", "สำนักงาน"];
+  depts.forEach((d) => deptSel.add(new Option(d, d)));
+
+  const roleOf = () => document.querySelector('input[name="role"]:checked').value;
+  document.querySelectorAll('input[name="role"]').forEach((r) => r.addEventListener("change", () => {
+    document.getElementById("deptWrap").hidden = roleOf() !== "head";
+  }));
+
+  const err = document.getElementById("err");
+  const btn = document.getElementById("loginBtn");
+  const pinInput = document.getElementById("pin");
+  pinInput.addEventListener("input", () => { err.textContent = ""; });
+  // ปุ่มรูปตา: สลับแสดง/ซ่อน PIN
+  const pinToggle = document.getElementById("pinToggle");
+  pinToggle.addEventListener("click", () => {
+    const show = pinInput.type === "password";
+    pinInput.type = show ? "text" : "password";
+    pinToggle.setAttribute("aria-pressed", String(show));
+    pinToggle.setAttribute("aria-label", show ? "ซ่อน PIN" : "แสดง PIN");
+    pinInput.focus();
+  });
+  // กล่องฟอร์มสั่นเบา ๆ เมื่อกรอกผิด
+  const form = document.getElementById("form");
+  const shake = () => { if (HW.reducedMotion()) return; form.classList.remove("shake"); void form.offsetWidth; form.classList.add("shake"); };
+
+  // หน่วงเวลาเมื่อกรอกผิดหลายครั้ง (ฝั่งหน้าเว็บกันได้แค่การกดเดาด้วยมือ ระบบจริงต้องจำกัดที่เซิร์ฟเวอร์)
+  let fails = 0;
+  let lockedUntil = 0;
+
+  document.getElementById("form").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const wait = Math.ceil((lockedUntil - Date.now()) / 1000);
+    if (wait > 0) { err.textContent = `กรอก PIN ผิดหลายครั้ง รออีก ${wait} วินาทีแล้วลองใหม่`; return; }
+    if (!pinInput.value.trim()) { err.textContent = "กรอก PIN ก่อนเข้าสู่ระบบ"; pinInput.focus(); return; }
+    const res = HW.login(roleOf(), pinInput.value, roleOf() === "head" ? deptSel.value : null);
+    if (!res.ok) {
+      fails++;
+      if (fails >= 5) { lockedUntil = Date.now() + 30000; fails = 0; err.textContent = "กรอก PIN ผิด 5 ครั้ง รอ 30 วินาทีแล้วลองใหม่"; }
+      else err.textContent = res.error;
+      shake();
+      pinInput.value = "";
+      pinInput.focus();
+      return;
+    }
+    btn.disabled = true;
+    location.replace(next);
+  });
+})();
+</script>
+</body>
+</html>

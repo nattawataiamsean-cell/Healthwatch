@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ประวัติรายคน | HealthWatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true"><path d="M2 14h5l2.5-6 4 11 2.5-5H24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand-text">HealthWatch<small>เฝ้าระวังสุขภาพจากการทำงาน</small></span>
+    </a>
+    <nav class="nav" aria-label="เมนูหลัก">
+      <a href="index.html">ภาพรวม</a>
+      <a href="record.html">บันทึกผลตรวจ</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div id="banner" class="banner" hidden></div>
+  <p><a href="index.html">กลับไปหน้าภาพรวม</a></p>
+  <div class="person-head"><h1 id="title">ประวัติผลตรวจ</h1><span class="meta" id="meta"></span></div>
+
+  <section class="panel" id="hearingPanel">
+    <h2>การได้ยิน</h2>
+    <div id="hearingSummary" class="summary-box" aria-live="polite"></div>
+
+    <div class="audio-head">
+      <h3 id="audioTitle">ออดิโอแกรม</h3>
+      <div class="audio-pick"><label for="cmpYear">เทียบปีแรกกับปี</label><select id="cmpYear"></select></div>
+    </div>
+    <div class="grid grid-2 audio-charts">
+      <figure class="audio-fig"><figcaption class="ear-r">หูขวา (O)</figcaption><div class="chart-box audio-box"><canvas id="audioR" role="img" aria-label="ออดิโอแกรมหูขวา เทียบปีแรกกับปีที่เลือก"></canvas></div></figure>
+      <figure class="audio-fig"><figcaption class="ear-l">หูซ้าย (X)</figcaption><div class="chart-box audio-box"><canvas id="audioL" role="img" aria-label="ออดิโอแกรมหูซ้าย เทียบปีแรกกับปีที่เลือก"></canvas></div></figure>
+    </div>
+    <p class="legend-note" id="audioNote"></p>
+
+    <h3>แย่ลงมากที่สุดเทียบกับปีแรก (500–6,000 Hz)</h3>
+    <div class="chart-box" style="height:240px"><canvas id="shiftChart" role="img" aria-label="กราฟระดับการได้ยินที่แย่ลงมากที่สุดในแต่ละปี"></canvas></div>
+    <p class="legend-note" id="shiftNote"></p>
+
+    <h3>ผลรายปี (dB HL)</h3>
+    <p class="hint mobile-only">เลื่อนตารางไปทางซ้าย-ขวาเพื่อดูทุกความถี่</p>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="ตารางผลการได้ยินรายปี เลื่อนซ้ายขวาได้"><table class="audio-table"><thead><tr id="hearingHead"></tr></thead><tbody id="hearingRows"></tbody></table></div>
+    <p class="legend-note">ตัวเลขในวงเล็บคือการเปลี่ยนแปลงจากปีแรก <span class="shift-bad">สีแดง = แย่ลงถึงเกณฑ์ผิดปกติ</span> <span class="shift-watch">สีส้ม = เฝ้าระวัง</span></p>
+  </section>
+
+  <section class="panel" id="lungPanel" style="margin-top:16px">
+    <h2>สมรรถภาพปอด</h2>
+    <div class="chart-box"><canvas id="lungChart" role="img" aria-label="กราฟสมรรถภาพปอด"></canvas></div>
+    <p class="legend-note" id="lungNote">เส้นประคือ FVC 80% ของค่าคาดคะเน ต่ำกว่านี้ถือว่าผิดปกติ</p>
+    <div class="table-wrap"><table class="stack"><thead><tr><th>ปี</th><th>FVC %</th><th>FEV1 %</th><th>FEV1/FVC %</th><th>ผล</th></tr></thead><tbody id="lungRows"></tbody></table></div>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="config.local.js"></script>
+<script src="data/mock-data.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  // ประวัติรายคนเปิดได้เฉพาะ จป. / แพทย์ (ระบบจริงต้องตรวจสิทธิ์ซ้ำที่เซิร์ฟเวอร์)
+  if (!HW.requireLogin(["officer"])) return;
+  HW.renderDemoBanner(document.getElementById("banner"));
+  const emp = (new URLSearchParams(location.search).get("emp") || "").trim().toUpperCase();
+  const main = document.querySelector("main");
+  const hidePanels = () => { document.getElementById("hearingPanel").hidden = true; document.getElementById("lungPanel").hidden = true; };
+  let records;
+  try { records = await HW.loadRecords(); } catch (e) {
+    hidePanels();
+    document.getElementById("title").textContent = "โหลดประวัติไม่ได้";
+    const holder = document.createElement("div");
+    main.appendChild(holder);
+    HW.renderError(holder, e);
+    return;
+  }
+  const mine = records.filter((r) => r.emp_id === emp);
+  if (!emp || !mine.length) {
+    document.getElementById("title").textContent = emp ? "ไม่พบรหัสพนักงาน " + emp : "ยังไม่ได้เลือกพนักงาน";
+    hidePanels();
+    main.insertAdjacentHTML("beforeend", '<p>ตรวจว่ารหัสพิมพ์ถูกต้อง (เช่น E-0001) หรือเลือกพนักงานจากตารางในหน้า <a href="index.html">ภาพรวม</a> ถ้าเป็นพนักงานใหม่ให้ <a href="record.html">บันทึกผลตรวจครั้งแรก</a></p>');
+    return;
+  }
+  document.getElementById("title").textContent = emp;
+  document.getElementById("meta").textContent = "แผนก" + mine[mine.length - 1].dept;
+  const c = HW.chartColors();
+  const hasChart = HW.chartsAvailable();
+  if (hasChart) {
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.color = c.muted;
+    Chart.defaults.borderColor = c.line;
+  }
+  const tag = (r) => `<span class="tag tag-${r.level}">${r.label}</span>`;
+  const refLine = (label, value, n, color) => ({ label, data: Array(n).fill(value), borderColor: color, borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, fill: false });
+
+  const hear = HW.history(records, emp, "hearing");
+  if (!hear.length) document.getElementById("hearingPanel").hidden = true;
+  else renderHearing(hear);
+
+  function renderHearing(hear) {
+    const H = HW.CRITERIA.hearing;
+    const base = hear[0];
+    const latest = hear[hear.length - 1];
+    const fmt = (n) => (n > 0 ? "+" : "") + n;
+    const list = (arr, cls) => (arr.length ? `<ul class="${cls}">${arr.map((t) => "<li>" + HW.escapeHtml(t) + "</li>").join("")}</ul>` : "");
+
+    // ---- สรุปผลปีล่าสุด ----
+    const evLatest = HW.evaluate(latest, records);
+    document.getElementById("hearingSummary").innerHTML =
+      `<p><strong>ผลปี ${latest.year}:</strong> ${tag(evLatest)} ${hear.length === 1 ? "(ผลครั้งแรก ใช้เป็นค่าตั้งต้น)" : `เทียบกับผลครั้งแรกปี ${base.year}`}</p>` +
+      list(evLatest.reasons, "") +
+      (evLatest.actions.length ? '<p class="must-do"><strong>ต้องทำต่อตามประกาศกรมสวัสดิการฯ:</strong></p>' + list(evLatest.actions, "must-do") : "") +
+      (evLatest.info.length ? '<p class="info-note"><strong>ข้อมูลเสริม (ไม่ใช้ตัดสินผล):</strong></p>' + list(evLatest.info, "info-note") : "");
+
+    // ---- ออดิโอแกรม ----
+    const sel = document.getElementById("cmpYear");
+    const others = hear.slice(1);
+    if (!others.length) {
+      sel.add(new Option(String(base.year), String(base.year)));
+      sel.disabled = true;
+    } else {
+      others.slice().reverse().forEach((r) => sel.add(new Option(String(r.year), String(r.year))));
+    }
+    const allVals = hear.flatMap((r) => HW.HEARING_FIELDS.map((k) => r[k])).filter((v) => typeof v === "number");
+    const yMax = Math.max(H.chartRange[1], Math.ceil((Math.max(...allVals) + 10) / 10) * 10);
+    const charts = {};
+
+    function audiogram(side, rec) {
+      const color = side === "r" ? c.earR : c.earL;
+      const point = side === "r" ? "circle" : "crossRot";
+      const pts = (r) => H.freqs.map((f) => ({ x: f, y: r[HW.hearingKey(side, f)] }));
+      const notch = HW.detectNotch(rec).find((n) => n.side === side);
+      const datasets = [
+        { label: `ปีแรก ${base.year}`, data: pts(base), borderColor: c.muted, backgroundColor: c.surface, borderDash: [5, 4], pointStyle: point, pointRadius: 4, borderWidth: 1.5 },
+      ];
+      if (rec !== base) {
+        datasets.push({
+          label: `ปี ${rec.year}`, data: pts(rec), borderColor: color, backgroundColor: color, pointStyle: point, borderWidth: 2.5,
+          // จุดก้นรอยบุ๋มใหญ่ขึ้นให้เห็นชัด
+          pointRadius: (ctx) => (notch && ctx.raw && ctx.raw.x === notch.freq ? 8 : 5),
+          pointBorderWidth: (ctx) => (notch && ctx.raw && ctx.raw.x === notch.freq ? 3 : 1.5),
+        });
+      }
+      datasets.push({ label: "ขอบเขตปกติ 25 dB HL", data: [{ x: 350, y: 25 }, { x: 11000, y: 25 }], borderColor: c.line, borderDash: [2, 3], borderWidth: 1.5, pointRadius: 0 });
+      return datasets;
+    }
+
+    function drawAudiograms() {
+      const rec = hear.find((r) => String(r.year) === sel.value) || base;
+      document.getElementById("audioTitle").textContent = rec === base ? `ออดิโอแกรมปี ${base.year}` : `ออดิโอแกรม: ปีแรก ${base.year} เทียบกับปี ${rec.year}`;
+      const notes = HW.detectNotch(rec).map((n) => `${n.earName}มีรอยบุ๋มที่ ${HW.freqLabel(n.freq)} Hz ลึก ${n.depth} dB (จุดใหญ่บนกราฟ)`);
+      document.getElementById("audioNote").textContent =
+        "แกนตั้งกลับหัวตามออดิโอแกรมจริง ยิ่งต่ำลงยิ่งได้ยินแย่ เส้นประสีเทา = ปีแรก เส้นทึบ = ปีที่เลือก " +
+        `${HW.freqLabel(8000)} Hz (8k*) บันทึกไว้ดูรูปร่างกราฟแต่ไม่ใช้ตัดสินผล ` +
+        "การสูญเสียการได้ยินจากเสียงดังมักเป็นรอยบุ๋มที่ 3,000–6,000 Hz ลึกที่สุดราว 4,000 Hz แล้วฟื้นขึ้นที่ 8,000 Hz" +
+        (notes.length ? " · " + notes.join(" · ") : " · ปีนี้ยังไม่พบรอยบุ๋มที่ชัดเจน");
+      if (!hasChart) return;
+      [["r", "audioR"], ["l", "audioL"]].forEach(([side, id]) => {
+        if (charts[id]) charts[id].destroy();
+        charts[id] = new Chart(document.getElementById(id), {
+          type: "line",
+          data: { datasets: audiogram(side, rec) },
+          options: {
+            maintainAspectRatio: false,
+            interaction: { mode: "nearest", intersect: false },
+            scales: {
+              x: {
+                type: "logarithmic", position: "top", min: 350, max: 11000,
+                title: { display: true, text: "ความถี่ (Hz)" },
+                afterBuildTicks: (axis) => { axis.ticks = H.freqs.map((v) => ({ value: v })); },
+                ticks: { callback: (v) => (v >= 1000 ? v / 1000 + "k" : v) + (H.evalFreqs.includes(v) ? "" : "*"), autoSkip: false, maxRotation: 0 },
+              },
+              y: { reverse: true, min: H.chartRange[0], max: yMax, ticks: { stepSize: 10 }, title: { display: true, text: "dB HL" } },
+            },
+            plugins: {
+              legend: { position: "bottom", labels: { usePointStyle: true } },
+              tooltip: { callbacks: { title: (items) => HW.freqLabel(items[0].raw.x) + " Hz", label: (it) => `${it.dataset.label}: ${it.raw.y} dB HL` } },
+            },
+          },
+        });
+      });
+    }
+    sel.addEventListener("change", drawAudiograms);
+    drawAudiograms();
+
+    // ---- แย่ลงมากที่สุดในแต่ละปี (เทียบปีแรก เฉพาะความถี่ที่ใช้ตัดสิน) ----
+    const maxShift = (side) => hear.map((r) => {
+      const s = HW.hearingShifts(r, base).filter((x) => x.side === side && x.evaluated);
+      return s.length ? Math.max(...s.map((x) => x.shift)) : null;
+    });
+    const years = hear.map((r) => r.year);
+    document.getElementById("shiftNote").textContent =
+      `เส้นประสีแดง = เกณฑ์ผิดปกติ ${H.abnormalShift} dB ตามประกาศกรมสวัสดิการฯ · เส้นประสีส้ม = เฝ้าระวัง ${H.watchShift} dB ค่าบวก = ได้ยินแย่ลง`;
+    if (hasChart) new Chart(document.getElementById("shiftChart"), {
+      type: "line",
+      data: { labels: years, datasets: [
+        { label: "หูขวา", data: maxShift("r"), borderColor: c.earR, backgroundColor: c.earR, pointStyle: "circle", pointRadius: 5, tension: 0.2 },
+        { label: "หูซ้าย", data: maxShift("l"), borderColor: c.earL, backgroundColor: c.earL, pointStyle: "crossRot", pointRadius: 6, tension: 0.2 },
+        refLine(`ผิดปกติ ${H.abnormalShift} dB`, H.abnormalShift, years.length, c.bad),
+        refLine(`เฝ้าระวัง ${H.watchShift} dB`, H.watchShift, years.length, c.watch),
+      ] },
+      options: { maintainAspectRatio: false, scales: { y: { suggestedMin: -5, suggestedMax: 20, title: { display: true, text: "dB ที่แย่ลง" } } }, plugins: { legend: { position: "bottom", labels: { usePointStyle: true } } } },
+    });
+
+    // ---- ตารางรายปี: แถวละหนึ่งหู ----
+    document.getElementById("hearingHead").innerHTML = "<th>ปี</th><th>หู</th>" +
+      H.freqs.map((f) => `<th>${HW.freqLabel(f)}${H.evalFreqs.includes(f) ? "" : "*"}</th>`).join("") + "<th>ผล</th>";
+    document.getElementById("hearingRows").innerHTML = hear.map((r, i) => {
+      const ev = HW.evaluate(r, records);
+      return HW.EARS.map(([side, earName], ei) => {
+        const cells = H.freqs.map((f) => {
+          const k = HW.hearingKey(side, f);
+          const v = r[k];
+          let extra = "";
+          if (i > 0 && typeof v === "number" && typeof base[k] === "number") {
+            const d = v - base[k];
+            const cls = !H.evalFreqs.includes(f) ? "" : d >= H.abnormalShift ? "shift-bad" : d >= H.watchShift ? "shift-watch" : "";
+            if (d !== 0) extra = ` <small class="${cls}">(${fmt(d)})</small>`;
+          }
+          return `<td data-label="${HW.freqLabel(f)} Hz${H.evalFreqs.includes(f) ? "" : " (ไม่ใช้ตัดสิน)"}"><span>${v ?? "–"}${extra}</span></td>`;
+        }).join("");
+        return `<tr class="${ei === 0 ? "year-start" : "year-cont"}">${ei === 0 ? `<td data-label="ปี" rowspan="2" class="year-cell">${r.year}${i === 0 ? " <small>(ปีแรก)</small>" : ""}</td>` : ""}<td data-label="หู" class="ear-${side}">${earName}</td>${cells}` +
+          (ei === 0 ? `<td data-label="ผล" rowspan="2"><span>${tag(ev)}</span></td>` : "") + "</tr>";
+      }).join("");
+    }).join("");
+  }
+
+  const lung = HW.history(records, emp, "lung");
+  document.getElementById("lungNote").textContent = `เส้นประคือ FVC ${HW.CRITERIA.lung.fvcMin}% ของค่าคาดคะเน ต่ำกว่านี้ถือว่าผิดปกติ`;
+  if (!lung.length) document.getElementById("lungPanel").hidden = true;
+  else {
+    const labels = lung.map((r) => r.year);
+    if (hasChart) new Chart(document.getElementById("lungChart"), {
+      type: "line",
+      data: { labels, datasets: [
+        { label: "FVC %", data: lung.map((r) => r.fvc_pct), borderColor: c.ink, backgroundColor: c.ink, tension: 0.2 },
+        { label: "FEV1 %", data: lung.map((r) => r.fev1_pct), borderColor: c.muted, backgroundColor: c.muted, borderDash: [2, 3], tension: 0.2 },
+        refLine(`เกณฑ์ ${HW.CRITERIA.lung.fvcMin}%`, HW.CRITERIA.lung.fvcMin, labels.length, c.bad),
+      ] },
+      options: { maintainAspectRatio: false, scales: { y: { suggestedMin: 60, suggestedMax: 110, title: { display: true, text: "% ของค่าคาดคะเน" } } }, plugins: { legend: { position: "bottom" } } },
+    });
+    document.getElementById("lungRows").innerHTML = lung.map((r) => {
+      const ev = HW.evaluate(r, records);
+      return `<tr><td data-label="ปี">${r.year}</td><td data-label="FVC %">${r.fvc_pct}</td><td data-label="FEV1 %">${r.fev1_pct}</td><td data-label="FEV1/FVC %">${r.fev1_fvc}</td><td data-label="ผล"><span>${tag(ev)}</span></td></tr>`;
+    }).join("");
+  }
+})();
+</script>
+</body>
+</html>

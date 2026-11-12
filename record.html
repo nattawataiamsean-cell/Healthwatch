@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บันทึกผลตรวจ | HealthWatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true"><path d="M2 14h5l2.5-6 4 11 2.5-5H24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand-text">HealthWatch<small>เฝ้าระวังสุขภาพจากการทำงาน</small></span>
+    </a>
+    <nav class="nav" aria-label="เมนูหลัก">
+      <a href="index.html">ภาพรวม</a>
+      <a href="record.html" aria-current="page">บันทึกผลตรวจ</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div id="banner" class="banner" hidden></div>
+  <h1>บันทึกผลตรวจสุขภาพ</h1>
+  <p class="lead">กรอกผลตรวจของพนักงานหนึ่งคนต่อครั้ง ระบบจะเทียบกับผลปีแรกของคนนั้นให้ทันทีหลังบันทึก ใช้รหัสพนักงานแทนชื่อเพื่อปกป้องข้อมูลสุขภาพ</p>
+
+  <form class="panel" id="form" novalidate>
+    <div class="form-grid">
+      <div><label for="emp">รหัสพนักงาน</label><input type="text" id="emp" list="empList" placeholder="เช่น E-0001" autocomplete="off" style="width:100%"><datalist id="empList"></datalist></div>
+      <div><label for="dept">แผนก</label><select id="dept" style="width:100%"></select></div>
+      <div><label for="year">ปีที่ตรวจ (พ.ศ.)</label><input type="number" id="year" min="2500" max="2700"></div>
+      <div><label>ประเภทการตรวจ</label>
+        <div class="segmented" role="radiogroup">
+          <label><input type="radio" name="type" value="hearing" checked>การได้ยิน</label>
+          <label><input type="radio" name="type" value="lung">สมรรถภาพปอด</label>
+        </div>
+      </div>
+    </div>
+
+    <fieldset id="hearingFields">
+      <legend>ระดับการได้ยิน (dB HL) ตามใบผลออดิโอแกรม</legend>
+      <!-- สร้างช่องกรอกจาก HW.CRITERIA.hearing.freqs: กด Tab ไล่หูขวาจากบนลงล่างก่อน แล้วจึงหูซ้าย -->
+      <div class="audio-grid" id="audioGrid"></div>
+      <p class="hint">กรอกตามเครื่องตรวจ ปกติเป็นช่วงละ 5 dB เทียบกับผลครั้งแรกที่ 500–6,000 Hz ตามประกาศกรมสวัสดิการฯ ส่วน 8,000 Hz บันทึกไว้ดูรูปร่างกราฟ (รอยบุ๋มจากเสียงดังจะฟื้นขึ้นที่ 8,000 Hz) แต่ไม่ใช้ตัดสินผล</p>
+    </fieldset>
+
+    <fieldset id="lungFields" hidden>
+      <legend>สมรรถภาพปอด</legend>
+      <div class="lung-grid">
+        <div><label for="fvc">FVC (% ของค่าคาดคะเน)</label><input type="number" id="fvc"></div>
+        <div><label for="fev1">FEV1 (% ของค่าคาดคะเน)</label><input type="number" id="fev1"></div>
+        <div><label for="ratio">FEV1/FVC (%)</label><input type="number" id="ratio"></div>
+      </div>
+    </fieldset>
+
+    <p class="error" id="err" role="alert"></p>
+    <button class="btn" type="submit" id="saveBtn">บันทึกผลตรวจ</button>
+  </form>
+
+  <div id="result" aria-live="polite"></div>
+</main>
+<script src="config.js"></script>
+<script src="config.local.js"></script>
+<script src="data/mock-data.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  // บันทึกผลตรวจได้เฉพาะ จป. / แพทย์ เพราะฟอร์มแสดงรหัสพนักงานและผลรายคน (ระบบจริงต้องตรวจสิทธิ์ซ้ำที่เซิร์ฟเวอร์)
+  if (!HW.requireLogin(["officer"])) return;
+  HW.renderDemoBanner(document.getElementById("banner"));
+  const err = document.getElementById("err");
+  const form = document.getElementById("form");
+  const btn = document.getElementById("saveBtn");
+  let records = [];
+  try {
+    records = await HW.loadRecords();
+  } catch (e) {
+    // โหลดข้อมูลเดิมไม่ได้ จะเช็กข้อมูลซ้ำและเทียบกับปีแรกไม่ได้ จึงปิดการบันทึกไว้ก่อน
+    HW.renderError(document.querySelector("main"), e);
+    btn.disabled = true;
+    err.textContent = "ปิดการบันทึกไว้ก่อน เพราะโหลดข้อมูลเดิมไม่ได้ แก้ตามวิธีในกล่องสีแดงด้านบนแล้วกดลองใหม่";
+  }
+  const emps = HW.employees(records);
+  const depts = [...new Set(records.map((r) => r.dept))];
+  if (!depts.length) depts.push("ปั๊มโลหะ", "พ่นสี", "ประกอบชิ้นส่วน", "คลังสินค้า", "สำนักงาน");
+  depts.forEach((d) => document.getElementById("dept").add(new Option(d, d)));
+  document.getElementById("empList").innerHTML = [...emps.keys()].map((e) => `<option value="${HW.escapeHtml(e)}">`).join("");
+  const ys = HW.years(records);
+  document.getElementById("year").value = ys.length ? ys[ys.length - 1] : new Date().getFullYear() + 543;
+
+  const empInput = document.getElementById("emp");
+  empInput.addEventListener("change", () => {
+    const d = emps.get(empInput.value.trim().toUpperCase());
+    if (d) document.getElementById("dept").value = d;
+  });
+
+  // สร้างช่องกรอกออดิโอแกรม: แถว = ความถี่, คอลัมน์ = หูขวา / หูซ้าย
+  // ใส่ช่องหูขวาทั้งหมดก่อนใน DOM เพื่อให้ Tab ไล่หูขวาบนลงล่างจนครบก่อน (ตรงกับการอ่านใบผลทีละหู)
+  (function buildAudioGrid() {
+    const H = HW.CRITERIA.hearing;
+    const grid = document.getElementById("audioGrid");
+    let html = '<span class="ag-head" style="grid-row:1;grid-column:1">ความถี่ (Hz)</span>';
+    HW.EARS.forEach(([side, name], ei) => {
+      html += `<span class="ag-head ag-ear ag-${side}" style="grid-row:1;grid-column:${ei + 2}">${name}</span>`;
+    });
+    H.freqs.forEach((f, i) => {
+      const used = H.evalFreqs.includes(f);
+      html += `<span class="ag-freq${used ? "" : " ag-unused"}" style="grid-row:${i + 2};grid-column:1">${HW.freqLabel(f)}${used ? "" : ' <small>(ไม่ใช้ตัดสิน)</small>'}</span>`;
+    });
+    HW.EARS.forEach(([side, name], ei) => {
+      H.freqs.forEach((f, i) => {
+        const id = HW.hearingKey(side, f);
+        html += `<input type="number" id="${id}" inputmode="numeric" step="5" min="-10" max="120" style="grid-row:${i + 2};grid-column:${ei + 2}" aria-label="${name} ${HW.freqLabel(f)} Hz">`;
+      });
+    });
+    grid.innerHTML = html;
+  })();
+
+  const typeOf = () => document.querySelector('input[name="type"]:checked').value;
+  document.querySelectorAll('input[name="type"]').forEach((r) => r.addEventListener("change", () => {
+    document.getElementById("hearingFields").hidden = typeOf() !== "hearing";
+    document.getElementById("lungFields").hidden = typeOf() !== "lung";
+    clearInvalid();
+  }));
+
+  // ชื่อฟิลด์ในข้อมูล → id ของช่องกรอก
+  const FIELD_ID = { emp_id: "emp", dept: "dept", year: "year", fvc_pct: "fvc", fev1_pct: "fev1", fev1_fvc: "ratio" };
+  const idOf = (field) => FIELD_ID[field] || field;
+  function clearInvalid() {
+    form.querySelectorAll('[aria-invalid="true"]').forEach((el) => el.removeAttribute("aria-invalid"));
+    err.textContent = "";
+  }
+  function showInvalid(field, message) {
+    err.textContent = message;
+    const el = field === "test_type" ? form.querySelector('input[name="type"]') : document.getElementById(idOf(field));
+    if (el) {
+      el.setAttribute("aria-invalid", "true");
+      el.setAttribute("aria-describedby", "err");
+      el.focus();
+    }
+  }
+  form.addEventListener("input", clearInvalid);
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    clearInvalid();
+    const val = (id) => document.getElementById(id).value.trim();
+    const type = typeOf();
+    const fields = type === "hearing" ? HW.HEARING_FIELDS : ["fvc", "fev1", "ratio"];
+    // ช่อง number ที่พิมพ์ตัวอักษรปนมา เบราว์เซอร์จะคืนค่าว่าง ต้องดูจาก validity.badInput
+    for (const id of ["year", ...fields]) {
+      if (document.getElementById(id).validity.badInput) { showInvalid(id, "ช่องนี้ต้องเป็นตัวเลขเท่านั้น ลบตัวอักษรหรือเครื่องหมายที่ไม่ใช่ตัวเลขออก"); return; }
+    }
+    const num = (id) => (val(id) === "" ? null : Number(val(id)));
+    const emp = val("emp").toUpperCase();
+    const rec = {
+      record_id: "R" + Date.now(), emp_id: emp, dept: val("dept"), year: num("year"), test_type: type,
+      fvc_pct: null, fev1_pct: null, fev1_fvc: null, note: "",
+    };
+    HW.HEARING_FIELDS.forEach((f) => (rec[f] = type === "hearing" ? num(f) : null));
+    if (type === "lung") { rec.fvc_pct = num("fvc"); rec.fev1_pct = num("fev1"); rec.fev1_fvc = num("ratio"); }
+
+    const bad = HW.validateRecord(rec, records);
+    if (bad) { showInvalid(bad.field, bad.error); return; }
+
+    btn.disabled = true; btn.textContent = "กำลังบันทึก…";
+    try {
+      const res = await HW.saveRecord(rec);
+      records.push(rec);
+      const result = HW.evaluate(rec, records);
+      const lineMsg = res.demo ? "โหมดสาธิตยังไม่ส่ง LINE เชื่อม Apps Script เพื่อเปิดใช้งาน"
+        : res.lineSent ? "ส่งแจ้งเตือน LINE ถึง จป. แล้ว"
+        : res.lineError ? "ยังส่ง LINE ไม่ได้ (" + HW.escapeHtml(res.lineError) + ") ลองรัน checkLine ใน Apps Script เพื่อดูรายละเอียด"
+        : "ยังส่ง LINE ไม่ได้ และ Apps Script ที่ใช้อยู่เป็นเวอร์ชันเก่า ให้ Deploy → จัดการการทำให้ใช้งานได้ → แก้ไข → เวอร์ชันใหม่ แล้วลองอีกครั้ง";
+      const storeMsg = res.demo && res.persisted === false
+        ? "<p><strong>หมายเหตุ:</strong> เบราว์เซอร์นี้ไม่ให้เก็บข้อมูล (เช่น เปิดโหมดไม่ระบุตัวตน) ผลนี้จะหายเมื่อโหลดหน้าใหม่</p>" : "";
+      document.getElementById("result").innerHTML = `<section class="result level-${result.level}">
+        <h2>บันทึกแล้ว: ${HW.escapeHtml(emp)} ผล${HW.TEST_NAMES[type]}${result.label}</h2>
+        ${result.reasons.length ? "<ul>" + result.reasons.map((r) => "<li>" + HW.escapeHtml(r) + "</li>").join("") + "</ul>" : "<p>" + (result.baseYear ? "ไม่พบการเปลี่ยนแปลงที่ต้องติดตามเมื่อเทียบกับปี " + result.baseYear : "นี่คือผลตรวจครั้งแรกของคนนี้ ระบบจะใช้เป็นค่าตั้งต้นสำหรับเทียบในปีถัดไป") + "</p>"}
+        ${result.actions.length ? '<p class="must-do"><strong>ต้องทำต่อ:</strong></p><ul class="must-do">' + result.actions.map((a) => "<li>" + HW.escapeHtml(a) + "</li>").join("") + "</ul>" : ""}
+        ${result.info.length ? '<p class="info-note"><strong>ข้อมูลเสริม (ไม่ใช้ตัดสินผล):</strong> ' + result.info.map(HW.escapeHtml).join(" · ") + "</p>" : ""}
+        ${result.level === 2 ? "<p>" + lineMsg + "</p>" : ""}${storeMsg}
+        <p><a href="person.html?emp=${encodeURIComponent(emp)}">ดูประวัติของ ${HW.escapeHtml(emp)}</a></p></section>`;
+      fields.forEach((f) => (document.getElementById(f).value = ""));
+      if (!emps.has(emp)) { emps.set(emp, rec.dept); document.getElementById("empList").insertAdjacentHTML("beforeend", `<option value="${HW.escapeHtml(emp)}">`); }
+    } catch (e) {
+      // บันทึกไม่สำเร็จ: แสดงสาเหตุและวิธีแก้ใต้ปุ่ม ข้อมูลที่กรอกยังอยู่ครบ กดบันทึกซ้ำได้
+      const steps = e.steps && e.steps.length ? "\nวิธีแก้:\n" + e.steps.map((s, i) => `${i + 1}. ${s}`).join("\n") : "";
+      err.textContent = "บันทึกไม่สำเร็จ: " + (e.title || e.message) + (e.detail ? " (" + e.detail + ")" : "") + steps +
+        (e.steps && e.steps.length ? "\nข้อมูลที่กรอกยังอยู่ แก้แล้วกดบันทึกอีกครั้งได้" : "");
+    } finally {
+      btn.disabled = false; btn.textContent = "บันทึกผลตรวจ";
+    }
+  });
+})();
+</script>
+</body>
+</html>
